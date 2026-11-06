@@ -1,0 +1,45 @@
+# Environments and Virtual Envs
+venv/
+backend/venv/
+.venv/
+env/
+ENV/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Node & Frontend dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variable files
+.env
+!.env.example
+
+# Database and persistence volumes
+mysql_data/
+qdrant_storage/
+ollama_data/
+uploads/
+backend/uploads/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

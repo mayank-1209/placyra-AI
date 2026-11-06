@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { UploadCloud, FileText, CheckCircle2, AlertTriangle, Loader2, Sparkles, Download, Layers } from 'lucide-react';
-import { tnpApi } from '../../services/apiClient';
+import { bulkUploadQuestions } from '../../store/slices/tnpSlice';
 
 export const BulkCsvUploader = ({ onUploadSuccess }) => {
+  const dispatch = useDispatch();
+  const { bulkUploadResult, bulkLoading, error: tnpError } = useSelector((state) => state.tnp);
+
   const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
       setError(null);
-      setResult(null);
     }
   };
 
@@ -23,22 +24,17 @@ export const BulkCsvUploader = ({ onUploadSuccess }) => {
       return;
     }
 
-    setLoading(true);
     setError(null);
-    setResult(null);
 
     const formData = new FormData();
     formData.append('file', file);
 
-    try {
-      const resp = await tnpApi.bulkUploadQuestions(formData);
-      setResult(resp.data);
+    const result = await dispatch(bulkUploadQuestions(formData));
+    if (bulkUploadQuestions.fulfilled.match(result)) {
       setFile(null);
       if (onUploadSuccess) onUploadSuccess();
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to upload and process question batch.');
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.payload || 'Failed to upload and process question batch.');
     }
   };
 
@@ -106,10 +102,10 @@ export const BulkCsvUploader = ({ onUploadSuccess }) => {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading || !file}
+              disabled={bulkLoading || !file}
               className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center transition-all"
             >
-              {loading ? (
+              {bulkLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Running Cosine Deduplication...
@@ -126,7 +122,7 @@ export const BulkCsvUploader = ({ onUploadSuccess }) => {
       </div>
 
       {/* Deduplication Statistics View */}
-      {result && (
+      {bulkUploadResult && (
         <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 className="text-lg font-bold text-white flex items-center">
@@ -141,26 +137,26 @@ export const BulkCsvUploader = ({ onUploadSuccess }) => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl text-center">
               <p className="text-xs text-slate-400 uppercase font-semibold">Total Rows Processed</p>
-              <p className="text-2xl font-black text-white mt-1">{result.total_processed}</p>
+              <p className="text-2xl font-black text-white mt-1">{bulkUploadResult.total_processed}</p>
             </div>
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
               <p className="text-xs text-emerald-300 uppercase font-semibold">New Questions Added</p>
-              <p className="text-2xl font-black text-emerald-400 mt-1">{result.added_questions}</p>
+              <p className="text-2xl font-black text-emerald-400 mt-1">{bulkUploadResult.added_questions}</p>
             </div>
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
               <p className="text-xs text-amber-300 uppercase font-semibold">Duplicates Skipped</p>
-              <p className="text-2xl font-black text-amber-400 mt-1">{result.duplicates_skipped}</p>
+              <p className="text-2xl font-black text-amber-400 mt-1">{bulkUploadResult.duplicates_skipped}</p>
             </div>
           </div>
 
           {/* Duplicate Match Details */}
-          {result.duplicate_details?.length > 0 && (
+          {bulkUploadResult.duplicate_details?.length > 0 && (
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
                 Deduplication Audit Trail (Cosine Similarity &gt; 82%)
               </h4>
               <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl text-xs space-y-2 max-h-48 overflow-y-auto">
-                {result.duplicate_details.map((detail, idx) => (
+                {bulkUploadResult.duplicate_details.map((detail, idx) => (
                   <p key={idx} className="text-slate-300 flex items-start">
                     <span className="text-amber-400 mr-2 font-bold">•</span>
                     {detail}

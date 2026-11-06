@@ -14,22 +14,23 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies a plain-text password against a bcrypt hash."""
+    """Verifies a plain-text password against a bcrypt hash with 72-byte truncation safety."""
     try:
         if not plain_password or not hashed_password:
             return False
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+        # Truncate to 72 bytes to conform with bcrypt specifications
+        password_bytes = plain_password.encode("utf-8")[:72]
+        hash_bytes = hashed_password.encode("utf-8")
+        return bcrypt.checkpw(password_bytes, hash_bytes)
     except Exception:
         return False
 
 
 def get_password_hash(password: str) -> str:
-    """Hashes a password with salt using bcrypt."""
+    """Hashes a password with salt using bcrypt with 72-byte safety."""
+    password_bytes = password.encode("utf-8")[:72]
     salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
 def create_access_token(

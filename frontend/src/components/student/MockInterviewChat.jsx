@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   MessageSquare,
   Bot,
@@ -14,151 +15,104 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react';
-import { interviewApi, tnpApi } from '../../services/apiClient';
+import {
+  startMockInterview,
+  submitInterviewAnswer,
+  endMockInterview,
+  resetInterviewSession,
+  appendOptimisticUserMessage,
+} from '../../store/slices/interviewSlice';
+import { fetchCompanies } from '../../store/slices/tnpSlice';
 
 export const MockInterviewChat = () => {
-  const [companies, setCompanies] = useState([]);
+  const dispatch = useDispatch();
+  const { session, messages, currentTurn, concludedReport, loading, evaluating, error } =
+    useSelector((state) => state.interview);
+  const { companies } = useSelector((state) => state.tnp);
+
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [targetRole, setTargetRole] = useState('Software Engineer');
   const [difficulty, setDifficulty] = useState('Medium');
-
-  // Interview session state
-  const [session, setSession] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [currentTurn, setCurrentTurn] = useState(1);
   const [answerText, setAnswerText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [evaluating, setEvaluating] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [concludedReport, setConcludedReport] = useState(null);
 
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    loadCompanies();
-  }, []);
+    if (!companies || companies.length === 0) {
+      dispatch(fetchCompanies());
+    }
+  }, [dispatch, companies]);
+
+  useEffect(() => {
+    if (companies && companies.length > 0 && !selectedCompanyId) {
+      setSelectedCompanyId(companies[0].id);
+    }
+  }, [companies, selectedCompanyId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, evaluating]);
 
-  const loadCompanies = async () => {
-    try {
-      const resp = await tnpApi.getCompanies();
-      setCompanies(resp.data);
-      if (resp.data.length > 0) {
-        setSelectedCompanyId(resp.data[0].id);
-      }
-    } catch (err) {
-      console.error('Failed to load companies:', err);
-    }
-  };
-
   const handleStartInterview = async () => {
-    setLoading(true);
-    setConcludedReport(null);
-    setMessages([]);
-    try {
-      const resp = await interviewApi.startInterview({
-        company_id: selectedCompanyId ? parseInt(selectedCompanyId) : null,
-        target_role: targetRole,
-        difficulty: difficulty,
-      });
-
-      const data = resp.data;
-      setSession({ id: data.session_id, target_role: targetRole, difficulty: difficulty });
-      setCurrentTurn(data.turn_number);
-
-      // Add initial interviewer question
-      setMessages([
-        {
-          id: 'turn-1-q',
-          role: 'assistant',
-          turn_number: data.turn_number,
-          text: data.question,
-          topic: data.context_topic,
-          hints: data.hints,
-        },
-      ]);
-    } catch (err) {
-      console.error('Failed to start interview:', err);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(
+      startMockInterview({
+        companyId: selectedCompanyId,
+        targetRole,
+        difficulty,
+      })
+    );
   };
 
   const handleSubmitAnswer = async (e) => {
     e.preventDefault();
-    if (!answerText.trim() || evaluating) return;
+    if (!answerText.trim() || evaluating || !session) return;
 
     const userAns = answerText.trim();
     setAnswerText('');
-    setEvaluating(true);
     setShowHint(false);
 
-    // Optimistically append student message
+    // Optimistically append student message in Redux store
     const tempUserMsg = {
       id: `turn-${currentTurn}-user`,
       role: 'user',
       turn_number: currentTurn,
       text: userAns,
     };
-    setMessages((prev) => [...prev, tempUserMsg]);
+    dispatch(appendOptimisticUserMessage(tempUserMsg));
 
-    try {
-      const resp = await interviewApi.submitAnswer(session.id, userAns);
-      const data = resp.data;
+    const resultAction = await dispatch(
+      submitInterviewAnswer({ sessionId: session.id, answerText: userAns })
+    );
 
-      // Update user message with evaluation score & feedback
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempUserMsg.id
-            ? { ...m, score: data.evaluation_score, feedback: data.evaluation_feedback }
-            : m
-        )
-      );
-
-      if (data.is_concluded) {
-        // Concluded
-        const endResp = await interviewApi.endInterview(session.id);
-        setConcludedReport(endResp.data);
-      } else {
-        // Append Next Question
-        setCurrentTurn(data.turn_number);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `turn-${data.turn_number}-q`,
-            role: 'assistant',
-            turn_number: data.turn_number,
-            text: data.question,
-            topic: data.context_topic,
-            hints: data.hints,
-          },
-        ]);
+    if (submitInterviewAnswer.fulfilled.match(resultAction)) {
+      if (resultAction.payload.is_concluded) {
+        dispatch(endMockInterview(session.id));
       }
-    } catch (err) {
-      console.error('Failed to submit answer:', err);
-    } finally {
-      setEvaluating(false);
     }
   };
 
-  const handleEndInterviewEarly = async () => {
+  const handleEndInterviewEarly = () => {
     if (!session) return;
-    setLoading(true);
-    try {
-      const resp = await interviewApi.endInterview(session.id);
-      setConcludedReport(resp.data);
-    } catch (err) {
-      console.error('Failed to end interview:', err);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(endMockInterview(session.id));
+  };
+
+  const handleReset = () => {
+    dispatch(resetInterviewSession());
   };
 
   return (
     <div className="space-y-6">
+      {/* Error notification */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center justify-between">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+
       {/* Configuration Header / Start Bar */}
       {!session || concludedReport ? (
         <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl">
@@ -220,7 +174,7 @@ export const MockInterviewChat = () => {
           <button
             onClick={handleStartInterview}
             disabled={loading}
-            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-all"
+            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-all disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -258,9 +212,10 @@ export const MockInterviewChat = () => {
 
             <button
               onClick={handleEndInterviewEarly}
+              disabled={loading}
               className="px-3.5 py-1.5 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
             >
-              Conclude Early
+              {loading ? 'Concluding...' : 'Conclude Early'}
             </button>
           </div>
 
@@ -270,7 +225,7 @@ export const MockInterviewChat = () => {
               const isAI = msg.role === 'assistant';
               return (
                 <div
-                  key={index}
+                  key={msg.id || index}
                   className={`flex items-start space-x-3 ${isAI ? 'justify-start' : 'justify-end'}`}
                 >
                   {isAI && (
@@ -436,10 +391,7 @@ export const MockInterviewChat = () => {
 
           <div className="flex justify-end pt-4">
             <button
-              onClick={() => {
-                setSession(null);
-                setConcludedReport(null);
-              }}
+              onClick={handleReset}
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl flex items-center shadow-lg shadow-indigo-600/30 transition-all"
             >
               <RotateCcw className="w-4 h-4 mr-2" />

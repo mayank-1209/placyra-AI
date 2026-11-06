@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Radar,
   RadarChart,
@@ -10,43 +11,29 @@ import {
   Legend,
 } from 'recharts';
 import { Target, CheckCircle2, AlertTriangle, ArrowRight, Loader2, Sparkles, Building2 } from 'lucide-react';
-import { tnpApi, studentApi } from '../../services/apiClient';
+import { fetchCompanies } from '../../store/slices/tnpSlice';
+import { analyzeSkillGap } from '../../store/slices/resumeSlice';
 
 export const SkillGapRadar = () => {
-  const [companies, setCompanies] = useState([]);
+  const dispatch = useDispatch();
+  const { companies } = useSelector((state) => state.tnp);
+  const { skillGapAnalysis: analysis, analysisLoading: loading, error } = useSelector((state) => state.resume);
+
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
-  const [analysis, setAnalysis] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadCompanies();
-  }, []);
+    dispatch(fetchCompanies());
+  }, [dispatch]);
 
-  const loadCompanies = async () => {
-    try {
-      const resp = await tnpApi.getCompanies();
-      setCompanies(resp.data);
-      if (resp.data.length > 0) {
-        setSelectedCompanyId(resp.data[0].id);
-      }
-    } catch (err) {
-      console.error('Failed to load companies:', err);
+  useEffect(() => {
+    if (companies.length > 0 && !selectedCompanyId) {
+      setSelectedCompanyId(companies[0].id);
     }
-  };
+  }, [companies, selectedCompanyId]);
 
-  const runAnalysis = async () => {
+  const runAnalysis = () => {
     if (!selectedCompanyId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await studentApi.analyzeGap(selectedCompanyId);
-      setAnalysis(resp.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to compute skill gap. Ensure your resume is uploaded.');
-    } finally {
-      setLoading(false);
-    }
+    dispatch(analyzeSkillGap(selectedCompanyId));
   };
 
   return (
@@ -58,7 +45,7 @@ export const SkillGapRadar = () => {
           Target Company Skill-Gap & Radar Analysis
         </h2>
         <p className="text-sm text-slate-400 mb-6">
-          Compare your extracted resume proficiencies against official campus placement criteria.
+          Compare your extracted resume proficiencies against official campus placement criteria using Redux-managed state.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">

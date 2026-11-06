@@ -32,7 +32,56 @@ def get_db() -> Generator:
         db.close()
 
 
-# Qdrant Vector Client Singleton
+def check_component_health() -> dict:
+    """
+    Performs non-blocking diagnostics across MySQL 8.0, Qdrant, and Ollama.
+    Never throws unhandled exceptions during health checks.
+    """
+    health_status = {
+        "mysql": {"status": "offline", "details": None},
+        "qdrant": {"status": "offline", "details": None},
+        "ollama": {"status": "offline", "details": None},
+    }
+
+    # 1. Test MySQL 8.0
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            conn.execute(text("SELECT 1"))
+            health_status["mysql"]["status"] = "online"
+            health_status["mysql"]["details"] = f"{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATABASE}"
+    except Exception as exc:
+        health_status["mysql"]["details"] = str(exc)[:120]
+
+    # 2. Test Qdrant Vector Engine
+    try:
+        q_client = get_qdrant_client()
+        if q_client:
+            colls = q_client.get_collections()
+            health_status["qdrant"]["status"] = "online"
+            health_status["qdrant"]["details"] = f"{len(colls.collections)} collections initialized"
+        else:
+            health_status["qdrant"]["details"] = "Could not initialize Qdrant client"
+    except Exception as exc:
+        health_status["qdrant"]["details"] = str(exc)[:120]
+
+    # 3. Test Ollama Server
+    try:
+        import httpx
+        with httpx.Client(timeout=1.5) as client:
+            resp = client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+            if resp.status_code == 200:
+                health_status["ollama"]["status"] = "online"
+                models = [m.get("name") for m in resp.json().get("models", [])]
+                health_status["ollama"]["details"] = f"Models available: {models[:3]}"
+            else:
+                health_status["ollama"]["details"] = f"HTTP {resp.status_code}"
+    except Exception as exc:
+        health_status["ollama"]["details"] = f"Offline (fallback active): {str(exc)[:60]}"
+
+    return health_status
+
+
 _qdrant_client: Optional[QdrantClient] = None
 
 

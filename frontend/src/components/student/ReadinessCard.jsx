@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   AreaChart,
   Area,
@@ -8,37 +9,29 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { BarChart3, TrendingUp, CheckCircle, AlertTriangle, FileText, Bot, Award } from 'lucide-react';
-import { analyticsApi } from '../../services/apiClient';
+import { BarChart3, TrendingUp, CheckCircle, AlertTriangle, FileText, Bot, Award, Loader2 } from 'lucide-react';
+import { fetchStudentReadiness } from '../../store/slices/resumeSlice';
 
 export const ReadinessCard = () => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { readiness, readinessLoading } = useSelector((state) => state.resume);
 
   useEffect(() => {
-    loadReadiness();
-  }, []);
-
-  const loadReadiness = async () => {
-    try {
-      const resp = await analyticsApi.getStudentReadiness();
-      setData(resp.data);
-    } catch (err) {
-      console.error('Failed to load readiness analytics:', err);
-    } finally {
-      setLoading(false);
+    if (!readiness) {
+      dispatch(fetchStudentReadiness());
     }
-  };
+  }, [dispatch, readiness]);
 
-  if (loading) {
+  if (readinessLoading && !readiness) {
     return (
-      <div className="p-8 text-center text-slate-400">
-        Loading Placement Readiness Analytics...
+      <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        <p className="text-sm font-medium">Loading Placement Readiness Analytics...</p>
       </div>
     );
   }
 
-  if (!data) return null;
+  if (!readiness) return null;
 
   return (
     <div className="space-y-6">
@@ -51,7 +44,7 @@ export const ReadinessCard = () => {
               Placement Readiness
             </p>
             <h3 className="text-3xl font-black text-white mt-1">
-              {data.overall_score}%
+              {readiness.overall_score}%
             </h3>
             <span className="text-[11px] text-emerald-400 font-medium flex items-center mt-1">
               <TrendingUp className="w-3 h-3 mr-1" /> Top Tier Batch Ranking
@@ -69,7 +62,7 @@ export const ReadinessCard = () => {
               Resume Strength
             </p>
             <h3 className="text-3xl font-black text-white mt-1">
-              {data.resume_score}%
+              {readiness.resume_score}%
             </h3>
             <span className="text-[11px] text-slate-400 mt-1 block">
               Verified by PyMuPDF OCR
@@ -87,7 +80,7 @@ export const ReadinessCard = () => {
               Mock Interview Avg
             </p>
             <h3 className="text-3xl font-black text-white mt-1">
-              {data.interview_avg_score} / 10
+              {readiness.interview_avg_score} / 10
             </h3>
             <span className="text-[11px] text-slate-400 mt-1 block">
               Ollama Technical Scoring
@@ -105,7 +98,7 @@ export const ReadinessCard = () => {
               Completed Rounds
             </p>
             <h3 className="text-3xl font-black text-white mt-1">
-              {data.interviews_completed}
+              {readiness.interviews_completed}
             </h3>
             <span className="text-[11px] text-indigo-400 mt-1 block">
               Active Preparation Practice
@@ -129,11 +122,11 @@ export const ReadinessCard = () => {
 
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data.historical_trend}>
+            <AreaChart data={readiness.historical_trend}>
               <defs>
                 <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stop-color="#6366f1" stop-opacity={0.4} />
-                  <stop offset="95%" stop-color="#6366f1" stop-opacity={0.0} />
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -164,7 +157,7 @@ export const ReadinessCard = () => {
             Placement Strengths
           </h4>
           <ul className="space-y-3">
-            {data.top_strengths?.map((s, idx) => (
+            {readiness.top_strengths?.map((s, idx) => (
               <li key={idx} className="flex items-start text-xs text-slate-300">
                 <span className="text-emerald-400 mr-2 font-bold">•</span>
                 <span>{s}</span>
@@ -179,7 +172,7 @@ export const ReadinessCard = () => {
             Critical Preparation Gaps
           </h4>
           <ul className="space-y-3">
-            {data.critical_gaps?.map((g, idx) => (
+            {readiness.critical_gaps?.map((g, idx) => (
               <li key={idx} className="flex items-start text-xs text-slate-300">
                 <span className="text-amber-400 mr-2 font-bold">•</span>
                 <span>{g}</span>

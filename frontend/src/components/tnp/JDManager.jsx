@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Building2, Plus, Trash2, Globe, Award, Loader2, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
-import { tnpApi } from '../../services/apiClient';
+import { fetchCompanies, createCompany, deleteCompany } from '../../store/slices/tnpSlice';
 
 export const JDManager = () => {
-  const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const dispatch = useDispatch();
+  const { companies, companiesLoading, error: tnpError } = useSelector((state) => state.tnp);
 
+  const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     industry: 'Technology & Cloud',
@@ -17,34 +18,16 @@ export const JDManager = () => {
     required_skills: 'Data Structures, Algorithms, Python, System Design',
     hiring_workflow: 'Online Assessment, Technical Interview 1, Technical Interview 2, HR',
   });
-
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   useEffect(() => {
-    loadCompanies();
-  }, []);
-
-  const loadCompanies = async () => {
-    setLoading(true);
-    try {
-      const resp = await tnpApi.getCompanies();
-      setCompanies(resp.data);
-    } catch (err) {
-      console.error('Failed to load companies:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    dispatch(fetchCompanies());
+  }, [dispatch]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this company profile?')) return;
-    try {
-      await tnpApi.deleteCompany(id);
-      setCompanies((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      alert('Failed to delete company: ' + (err.response?.data?.detail || err.message));
-    }
+    dispatch(deleteCompany(id));
   };
 
   const handleSubmit = async (e) => {
@@ -52,7 +35,7 @@ export const JDManager = () => {
     if (!formData.name.trim()) return;
 
     setSaving(true);
-    setError(null);
+    setFormError(null);
 
     const payload = {
       name: formData.name.trim(),
@@ -65,9 +48,10 @@ export const JDManager = () => {
       hiring_workflow: formData.hiring_workflow.split(',').map((s) => s.trim()).filter(Boolean),
     };
 
-    try {
-      const resp = await tnpApi.createCompany(payload);
-      setCompanies((prev) => [...prev, resp.data]);
+    const result = await dispatch(createCompany(payload));
+    setSaving(false);
+
+    if (createCompany.fulfilled.match(result)) {
       setShowAddForm(false);
       setFormData({
         name: '',
@@ -79,10 +63,8 @@ export const JDManager = () => {
         required_skills: 'Data Structures, Algorithms, Python, System Design',
         hiring_workflow: 'Online Assessment, Technical Round 1, Technical Round 2, HR',
       });
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create company profile.');
-    } finally {
-      setSaving(false);
+    } else {
+      setFormError(result.payload || 'Failed to create company profile.');
     }
   };
 
@@ -202,10 +184,10 @@ export const JDManager = () => {
               </div>
             </div>
 
-            {error && (
+            {formError && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center">
                 <AlertCircle className="w-4 h-4 mr-2" />
-                {error}
+                {formError}
               </div>
             )}
 
@@ -227,6 +209,14 @@ export const JDManager = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Loading Indicator */}
+      {companiesLoading && companies.length === 0 && (
+        <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <p className="text-sm font-medium">Loading Company Profiles...</p>
         </div>
       )}
 

@@ -110,7 +110,7 @@ docker compose exec backend python /app/scripts/seed_initial_data.py
 ```
 
 ### Access URLs:
-- **Application Frontend**: [http://localhost](http://localhost) (or [http://localhost:3000](http://localhost:3000))
+- **Application Frontend**: [http://localhost](http://localhost) (or [http://localhost:4000](http://localhost:4000))
 - **Interactive API Documentation (Swagger)**: [http://localhost/docs](http://localhost/docs) (or [http://localhost:8000/docs](http://localhost:8000/docs))
 - **Qdrant Vector Console**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
@@ -158,7 +158,7 @@ npm install
 
 # Start Vite development server
 npm run dev
-# Running on http://localhost:3000 (with proxy to backend :8000)
+# Running on http://localhost:4000 (with proxy to backend :8000)
 ```
 
 ---

@@ -14,9 +14,9 @@ FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Custom nginx config for SPA routing on port 3000
+# Custom nginx config for SPA routing on port 4000
 RUN echo 'server { \
-    listen 3000; \
+    listen 4000; \
     server_name localhost; \
     location / { \
         root /usr/share/nginx/html; \
@@ -29,6 +29,6 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-EXPOSE 3000
+EXPOSE 4000
 
 CMD ["nginx", "-g", "daemon off;"]

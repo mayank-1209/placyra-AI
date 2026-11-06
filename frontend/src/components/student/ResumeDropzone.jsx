@@ -1,68 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, User, Award } from 'lucide-react';
-import { studentApi } from '../../services/apiClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, Award } from 'lucide-react';
+import { uploadResume, fetchMyResume, resetUploadStatus } from '../../store/slices/resumeSlice';
 
 export const ResumeDropzone = ({ onResumeProcessed }) => {
+  const dispatch = useDispatch();
+  const { currentResume, uploadLoading, uploadSuccess, error } = useSelector((state) => state.resume);
+
   const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [currentResume, setCurrentResume] = useState(null);
-  const [error, setError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
+  const [localError, setLocalError] = useState(null);
 
-  // Fetch current resume on mount
   useEffect(() => {
-    loadResume();
-  }, []);
+    dispatch(fetchMyResume());
+  }, [dispatch]);
 
-  const loadResume = async () => {
-    try {
-      const resp = await studentApi.getMyResume();
-      if (resp.data) {
-        setCurrentResume(resp.data);
-        if (onResumeProcessed) {
-          onResumeProcessed(resp.data);
-        }
-      }
-    } catch (err) {
-      console.warn('No existing resume found:', err);
+  useEffect(() => {
+    if (currentResume && onResumeProcessed) {
+      onResumeProcessed(currentResume);
     }
-  };
+  }, [currentResume, onResumeProcessed]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
-      setError(null);
+      setLocalError(null);
+      dispatch(resetUploadStatus());
     }
   };
 
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError('Please select a PDF or image resume to upload.');
+      setLocalError('Please select a PDF or image resume to upload.');
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setSuccessMsg(null);
-
+    setLocalError(null);
     const formData = new FormData();
     formData.append('file', file);
 
-    try {
-      const resp = await studentApi.uploadResume(formData);
-      setCurrentResume(resp.data);
-      setSuccessMsg('Resume parsed and OCR extracted successfully!');
+    const result = await dispatch(uploadResume(formData));
+    if (uploadResume.fulfilled.match(result)) {
       setFile(null);
-      if (onResumeProcessed) {
-        onResumeProcessed(resp.data);
-      }
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to process resume OCR. Check file format.');
-    } finally {
-      setLoading(false);
     }
   };
+
+  const displayError = localError || error;
 
   return (
     <div className="space-y-6">
@@ -73,7 +56,7 @@ export const ResumeDropzone = ({ onResumeProcessed }) => {
           Resume OCR & AI Skill Extraction Pipeline
         </h2>
         <p className="text-sm text-slate-400 mb-6">
-          Upload your resume in PDF, PNG, or JPG format. PyMuPDF with Tesseract OCR extracts text, while our local parser identifies skills, projects, and CGPA.
+          Upload your resume in PDF, PNG, or JPG format. PyMuPDF with Tesseract OCR extracts text, while our local parser identifies skills, projects, and CGPA. Managed with Redux Toolkit.
         </p>
 
         <form onSubmit={handleUpload} className="space-y-4">
@@ -91,27 +74,27 @@ export const ResumeDropzone = ({ onResumeProcessed }) => {
             />
           </label>
 
-          {error && (
+          {displayError && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm flex items-center">
               <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
-              {error}
+              {displayError}
             </div>
           )}
 
-          {successMsg && (
+          {uploadSuccess && (
             <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm flex items-center">
               <CheckCircle2 className="w-4 h-4 mr-2 shrink-0" />
-              {successMsg}
+              Resume parsed and OCR extracted successfully!
             </div>
           )}
 
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading || !file}
+              disabled={uploadLoading || !file}
               className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center transition-all"
             >
-              {loading ? (
+              {uploadLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Running OCR Extraction...

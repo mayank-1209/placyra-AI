@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/common/Navbar';
 import Sidebar from '../../components/common/Sidebar';
@@ -23,35 +24,24 @@ import {
   FileQuestion,
   Clock,
   Sparkles,
-  Award,
+  Loader2,
 } from 'lucide-react';
-import { analyticsApi } from '../../services/apiClient';
+import { fetchBatchAnalytics } from '../../store/slices/tnpSlice';
 
 export const TnpDashboard = () => {
   const { user } = useAuth();
+  const dispatch = useDispatch();
+  const { batchAnalytics, loading: analyticsLoading } = useSelector((state) => state.tnp);
+
   const [activeTab, setActiveTab] = useState(
     user?.role === 'alumni' ? 'add-question' : 'companies'
   );
-  const [batchData, setBatchData] = useState(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'batch-analytics') {
-      loadBatchAnalytics();
+    if (activeTab === 'batch-analytics' && !batchAnalytics) {
+      dispatch(fetchBatchAnalytics());
     }
-  }, [activeTab]);
-
-  const loadBatchAnalytics = async () => {
-    setLoadingAnalytics(true);
-    try {
-      const resp = await analyticsApi.getTnpBatchOverview();
-      setBatchData(resp.data);
-    } catch (err) {
-      console.error('Failed to load batch analytics:', err);
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
+  }, [activeTab, batchAnalytics, dispatch]);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -71,9 +61,14 @@ export const TnpDashboard = () => {
 
           {activeTab === 'batch-analytics' && (
             <div className="space-y-6">
-              {loadingAnalytics || !batchData ? (
-                <div className="p-8 text-center text-slate-400">
-                  Loading Batch Placement Analytics...
+              {analyticsLoading && !batchAnalytics ? (
+                <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                  <p className="text-sm font-medium">Loading Batch Placement Analytics...</p>
+                </div>
+              ) : !batchAnalytics ? (
+                <div className="p-8 text-center text-slate-500 bg-slate-900/60 rounded-xl border border-slate-800">
+                  No batch analytics data currently available.
                 </div>
               ) : (
                 <>
@@ -85,7 +80,7 @@ export const TnpDashboard = () => {
                           Registered Students
                         </p>
                         <h3 className="text-3xl font-black text-white mt-1">
-                          {batchData.batch_kpis?.total_students}
+                          {batchAnalytics.batch_kpis?.total_students}
                         </h3>
                       </div>
                       <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
@@ -99,7 +94,7 @@ export const TnpDashboard = () => {
                           Partner Companies
                         </p>
                         <h3 className="text-3xl font-black text-white mt-1">
-                          {batchData.batch_kpis?.active_companies}
+                          {batchAnalytics.batch_kpis?.active_companies}
                         </h3>
                       </div>
                       <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
@@ -113,7 +108,7 @@ export const TnpDashboard = () => {
                           Indexed Questions
                         </p>
                         <h3 className="text-3xl font-black text-white mt-1">
-                          {batchData.batch_kpis?.indexed_questions}
+                          {batchAnalytics.batch_kpis?.indexed_questions}
                         </h3>
                       </div>
                       <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
@@ -127,7 +122,7 @@ export const TnpDashboard = () => {
                           Moderation Pending
                         </p>
                         <h3 className="text-3xl font-black text-white mt-1">
-                          {batchData.batch_kpis?.pending_moderation}
+                          {batchAnalytics.batch_kpis?.pending_moderation}
                         </h3>
                       </div>
                       <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
@@ -148,7 +143,7 @@ export const TnpDashboard = () => {
 
                     <div className="h-72 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={batchData.branch_distributions}>
+                        <BarChart data={batchAnalytics.branch_distributions}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                           <XAxis dataKey="branch" stroke="#64748b" tick={{ fontSize: 11 }} />
                           <YAxis domain={[0, 100]} stroke="#64748b" tick={{ fontSize: 11 }} />
@@ -170,7 +165,7 @@ export const TnpDashboard = () => {
                       Top Critical Skill Gaps Across Student Batch
                     </h3>
                     <div className="space-y-3">
-                      {batchData.top_missing_skills?.map((item, idx) => (
+                      {batchAnalytics.top_missing_skills?.map((item, idx) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800 rounded-xl"

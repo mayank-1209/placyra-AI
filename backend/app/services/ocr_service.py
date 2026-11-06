@@ -2,7 +2,11 @@ import io
 import logging
 import os
 from typing import Optional
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
+
 from PIL import Image
 
 try:
@@ -20,6 +24,10 @@ def extract_text_from_pdf(file_path: str) -> str:
     """
     extracted_text_chunks = []
     has_meaningful_text = False
+
+    if not fitz:
+        logger.warning("PyMuPDF (fitz) is not installed; attempting raw read or image fallback.")
+        return ""
 
     try:
         doc = fitz.open(file_path)

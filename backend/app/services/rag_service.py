@@ -11,6 +11,7 @@ from app.models.question import Question, ModerationStatus
 from app.models.resume import Resume
 from app.services.embedding_service import generate_embedding
 from app.services.qdrant_service import search_similar_questions
+from app.utils.security_defense import defang_prompt_injection
 from app.utils.prompts import (
     MOCK_INTERVIEW_INTERVIEWER_PROMPT,
     MOCK_INTERVIEW_EVALUATION_PROMPT,
@@ -114,7 +115,7 @@ async def generate_adaptive_interview_question(
         difficulty=session.difficulty,
         company_context=context_data["company_context"],
         resume_context=context_data["resume_context"],
-        chat_history=chat_history,
+        chat_history=defang_prompt_injection(chat_history),
     )
 
     generated_question = None
@@ -167,9 +168,10 @@ async def evaluate_interview_answer(
     """
     guidelines = answer_guidelines or "Accurate algorithmic logic, mention of edge cases, time/space complexity analysis."
 
+    safe_answer = defang_prompt_injection(candidate_answer)
     prompt = MOCK_INTERVIEW_EVALUATION_PROMPT.format(
         question_text=question_text,
-        candidate_answer=candidate_answer,
+        candidate_answer=safe_answer,
         answer_guidelines=guidelines,
     )
 

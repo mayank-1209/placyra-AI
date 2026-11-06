@@ -37,12 +37,25 @@ async def save_uploaded_file(upload_file: UploadFile, subfolder: str = "resumes"
     unique_filename = f"{uuid.uuid4().hex}{ext}"
     destination_path = os.path.join(target_dir, unique_filename)
 
-    # Read and write chunks to enforce max size limits safely
+    # Read and write chunks to enforce max size limits safely & block dangerous binaries
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     total_size = 0
+    first_chunk = True
 
     async with aiofiles.open(destination_path, "wb") as out_file:
         while content := await upload_file.read(1024 * 64):  # 64KB chunks
+            if first_chunk:
+                first_chunk = False
+                # Reject disguised executable binaries (MZ header for PE, ELF header for Linux)
+                if content.startswith(b"MZ") or content.startswith(b"\x7fELF"):
+                    out_file.close()
+                    if os.path.exists(destination_path):
+                        os.remove(destination_path)
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Executable binaries are strictly prohibited."
+                    )
+
             total_size += len(content)
             if total_size > max_bytes:
                 # Cleanup partially written file

@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, engine, check_component_health
+from app.core.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.services.qdrant_service import initialize_qdrant_collections
 
 # Setup root logging
@@ -56,6 +57,12 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+# Enterprise Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Sliding Window Rate Limiting Middleware
+app.add_middleware(RateLimitMiddleware, auth_limit=25, general_limit=200)
+
 # CORS Middleware Configuration
 app.add_middleware(
     CORSMiddleware,
@@ -85,10 +92,17 @@ def root():
 
 
 @app.get("/health", tags=["Health Check"])
+@app.get("/api/v1/health", tags=["Health Check"])
 def health_check():
-    """Healthcheck endpoint for container orchestration and reverse proxy."""
+    """
+    Enterprise health check and component diagnostics.
+    Reports real-time status of MySQL 8.0, Qdrant, and Ollama.
+    """
+    components = check_component_health()
+    all_healthy = all(c["status"] == "online" for c in components.values())
     return {
-        "status": "healthy",
+        "status": "healthy" if all_healthy else "degraded",
         "environment": settings.ENVIRONMENT,
         "api_version": "v1",
+        "components": components,
     }

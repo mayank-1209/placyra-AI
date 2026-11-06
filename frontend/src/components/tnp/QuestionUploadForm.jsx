@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, CheckCircle2, AlertCircle, Loader2, Sparkles, HelpCircle } from 'lucide-react';
-import { tnpApi } from '../../services/apiClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { PlusCircle, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { createQuestion, fetchCompanies } from '../../store/slices/tnpSlice';
 
 export const QuestionUploadForm = ({ onQuestionAdded }) => {
-  const [companies, setCompanies] = useState([]);
+  const dispatch = useDispatch();
+  const { companies, error: tnpError } = useSelector((state) => state.tnp);
+
   const [formData, setFormData] = useState({
     company_id: '',
     role_title: 'Software Engineer',
@@ -19,20 +22,16 @@ export const QuestionUploadForm = ({ onQuestionAdded }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadCompanies();
-  }, []);
-
-  const loadCompanies = async () => {
-    try {
-      const resp = await tnpApi.getCompanies();
-      setCompanies(resp.data);
-      if (resp.data.length > 0) {
-        setFormData((prev) => ({ ...prev, company_id: resp.data[0].id }));
-      }
-    } catch (err) {
-      console.error('Failed to load companies:', err);
+    if (!companies || companies.length === 0) {
+      dispatch(fetchCompanies());
     }
-  };
+  }, [dispatch, companies]);
+
+  useEffect(() => {
+    if (companies && companies.length > 0 && !formData.company_id) {
+      setFormData((prev) => ({ ...prev, company_id: companies[0].id }));
+    }
+  }, [companies, formData.company_id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,12 +49,15 @@ export const QuestionUploadForm = ({ onQuestionAdded }) => {
     setError(null);
     setSuccess(false);
 
-    try {
-      await tnpApi.createQuestion({
-        ...formData,
-        company_id: formData.company_id ? parseInt(formData.company_id) : null,
-      });
+    const payload = {
+      ...formData,
+      company_id: formData.company_id ? parseInt(formData.company_id) : null,
+    };
 
+    const result = await dispatch(createQuestion(payload));
+    setLoading(false);
+
+    if (createQuestion.fulfilled.match(result)) {
       setSuccess(true);
       setFormData((prev) => ({
         ...prev,
@@ -63,10 +65,8 @@ export const QuestionUploadForm = ({ onQuestionAdded }) => {
         answer_guidelines: '',
       }));
       if (onQuestionAdded) onQuestionAdded();
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit question.');
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.payload || 'Failed to submit question.');
     }
   };
 
@@ -209,7 +209,7 @@ export const QuestionUploadForm = ({ onQuestionAdded }) => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 flex items-center transition-all"
+            className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 flex items-center transition-all disabled:opacity-50"
           >
             {loading ? (
               <>

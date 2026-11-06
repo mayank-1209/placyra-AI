@@ -26,8 +26,13 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Relationships
+    # Core Relationships
     resumes = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
     interview_sessions = relationship("MockInterviewSession", back_populates="user", cascade="all, delete-orphan")
     submitted_questions = relationship("Question", back_populates="submitter")
     skill_gap_reports = relationship("SkillGapReport", back_populates="user", cascade="all, delete-orphan")
+
+    # Extension Relationships (Settings, RBAC, Blog)
+    settings = relationship("UserSetting", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    assigned_roles = relationship("Role", secondary="user_roles", back_populates="users")
+    blog_posts = relationship("BlogPost", back_populates="author", cascade="all, delete-orphan")

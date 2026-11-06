@@ -9,8 +9,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Inline anti-flash script for instantaneous Theme initialization -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('placyra-theme') || 'system';
+          var isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Google AdSense Readiness Script -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000" crossorigin="anonymous"></script>
   </head>
-  <body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white">
+  <body class="bg-bg text-text min-h-screen antialiased selection:bg-accent selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

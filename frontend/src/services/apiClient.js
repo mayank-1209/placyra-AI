@@ -22,15 +22,24 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle Global 401 Unauthorized
+// Response Interceptor: Handle Global 401 Unauthorized without hard redirects in Guest Mode
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('placyra_token');
       localStorage.removeItem('placyra_user');
-      if (window.location.pathname !== '/auth') {
-        window.location.href = '/auth';
+
+      // Dispatch global auth event so the AuthModal opens without page refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('placyra:auth_required', {
+            detail: {
+              code: error.response?.data?.code || error.response?.data?.detail?.code || 'AUTH_REQUIRED',
+              message: error.response?.data?.detail?.message || error.response?.data?.detail || 'Authentication required',
+            },
+          })
+        );
       }
     }
     return Promise.reject(error);
@@ -41,6 +50,8 @@ export const authApi = {
   login: (credentials) => apiClient.post('/auth/login', credentials),
   register: (userData) => apiClient.post('/auth/register', userData),
   getMe: () => apiClient.get('/auth/me'),
+  getSettings: () => apiClient.get('/me/settings'),
+  updateSettings: (data) => apiClient.patch('/me/settings', data),
 };
 
 export const tnpApi = {

@@ -12,8 +12,8 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('placyra_user', JSON.stringify(user));
       return { access_token, user };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Invalid email or password';
-      return rejectWithValue(message);
+      const message = err.response?.data?.detail || err.response?.data?.detail?.message || 'Invalid email or password';
+      return rejectWithValue(typeof message === 'string' ? message : 'Invalid email or password');
     }
   }
 );
@@ -29,8 +29,8 @@ export const registerUser = createAsyncThunk(
       localStorage.setItem('placyra_user', JSON.stringify(user));
       return { access_token, user };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Registration failed';
-      return rejectWithValue(message);
+      const message = err.response?.data?.detail || err.response?.data?.detail?.message || 'Registration failed';
+      return rejectWithValue(typeof message === 'string' ? message : 'Registration failed');
     }
   }
 );
@@ -66,6 +66,9 @@ const initialState = {
   isAuthenticated: !!storedToken && !!storedUser,
   loading: !!storedToken, // initial verification if token exists
   error: null,
+  isAuthModalOpen: false,
+  authModalMode: 'signup', // 'signup' | 'login'
+  pendingAction: null, // { action: string, metadata?: any, callbackId?: string }
 };
 
 const authSlice = createSlice({
@@ -80,9 +83,30 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.loading = false;
       state.error = null;
+      state.pendingAction = null;
     },
     clearAuthError: (state) => {
       state.error = null;
+    },
+    openAuthModal: (state, action) => {
+      state.isAuthModalOpen = true;
+      state.authModalMode = action.payload?.mode || 'signup';
+      if (action.payload?.pendingAction !== undefined) {
+        state.pendingAction = action.payload.pendingAction;
+      }
+      state.error = null;
+    },
+    closeAuthModal: (state) => {
+      state.isAuthModalOpen = false;
+      state.error = null;
+      // Do not clear pendingAction on accidental close if caller wants to preserve it,
+      // but by default we allow caller to clear explicitly
+    },
+    setPendingAction: (state, action) => {
+      state.pendingAction = action.payload;
+    },
+    clearPendingAction: (state) => {
+      state.pendingAction = null;
     },
   },
   extraReducers: (builder) => {
@@ -97,6 +121,7 @@ const authSlice = createSlice({
         state.token = action.payload.access_token;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        state.isAuthModalOpen = false;
         state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -115,6 +140,7 @@ const authSlice = createSlice({
         state.token = action.payload.access_token;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        state.isAuthModalOpen = false;
         state.error = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
@@ -122,7 +148,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Fetch Current User
+    // Fetch Me
     builder
       .addCase(fetchCurrentUser.pending, (state) => {
         state.loading = true;
@@ -131,7 +157,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
-        state.error = null;
       })
       .addCase(fetchCurrentUser.rejected, (state) => {
         state.loading = false;
@@ -142,5 +167,13 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearAuthError } = authSlice.actions;
+export const {
+  logout,
+  clearAuthError,
+  openAuthModal,
+  closeAuthModal,
+  setPendingAction,
+  clearPendingAction,
+} = authSlice.actions;
+
 export default authSlice.reducer;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   GraduationCap,
@@ -26,6 +26,20 @@ export const AuthPage = () => {
 
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectAfterAuth = (userRole) => {
+    const fromPath = location.state?.from?.pathname;
+    if (fromPath && fromPath !== '/auth') {
+      navigate(fromPath);
+      return;
+    }
+    if (userRole === 'student') {
+      navigate('/student');
+    } else {
+      navigate('/tnp');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,11 +49,7 @@ export const AuthPage = () => {
     try {
       if (isLogin) {
         const loggedUser = await login(email, password);
-        if (loggedUser.role === 'student') {
-          navigate('/student');
-        } else {
-          navigate('/tnp');
-        }
+        redirectAfterAuth(loggedUser.role);
       } else {
         const registeredUser = await register({
           email,
@@ -50,14 +60,10 @@ export const AuthPage = () => {
           cgpa: parseFloat(cgpa) || null,
           graduation_year: parseInt(gradYear) || null,
         });
-        if (registeredUser.role === 'student') {
-          navigate('/student');
-        } else {
-          navigate('/tnp');
-        }
+        redirectAfterAuth(registeredUser.role);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Authentication failed. Please verify credentials.');
+      setError(err.response?.data?.detail || err.message || 'Authentication failed. Please verify credentials.');
     } finally {
       setLoading(false);
     }
@@ -68,22 +74,18 @@ export const AuthPage = () => {
     setError(null);
     try {
       const loggedUser = await login(demoEmail, demoPassword);
-      if (loggedUser.role === 'student') {
-        navigate('/student');
-      } else {
-        navigate('/tnp');
-      }
+      redirectAfterAuth(loggedUser.role);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Demo login failed.');
+      setError(err.response?.data?.detail || err.message || 'Demo login failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Glow Accents */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-gradient-to-b from-indigo-600/20 via-violet-600/10 to-transparent blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-bg text-text flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Glow Accent */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-accent-subtle blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
         {/* Placyra Logo */}
@@ -94,126 +96,126 @@ export const AuthPage = () => {
             className="h-14 w-auto object-contain"
           />
         </div>
-        <p className="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-1">
+        <p className="text-xs uppercase tracking-widest text-accent font-bold mb-1">
           Campus Placement & AI Career Assistant
         </p>
-        <h2 className="text-2xl font-black text-white">
-          {isLogin ? 'Sign in to your account' : 'Register your campus profile'}
+        <h2 className="text-2xl font-black text-text">
+          {isLogin ? 'Sign In to Your Workspace' : 'Create Placyra Account'}
         </h2>
+        <p className="mt-1 text-xs text-text-muted">
+          Access PyMuPDF ATS scoring, Qdrant semantic matching, and adaptive Ollama mock interviews.
+        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
-        <div className="bg-slate-900/90 border border-slate-800 py-8 px-6 sm:px-10 rounded-2xl shadow-2xl backdrop-blur-xl">
-          {/* Tab Switcher */}
-          <div className="flex border-b border-slate-800 pb-4 mb-6">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-surface py-8 px-6 border border-border shadow-2xl rounded-2xl sm:px-10 space-y-6">
+          {/* Auth Mode Toggle */}
+          <div className="flex border-b border-border">
             <button
+              type="button"
               onClick={() => {
                 setIsLogin(true);
                 setError(null);
               }}
-              className={`flex-1 pb-2 text-sm font-bold transition-colors ${
+              className={`flex-1 pb-3 text-xs font-bold uppercase tracking-wider transition-all ${
                 isLogin
-                  ? 'border-b-2 border-indigo-500 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'border-b-2 border-accent text-accent'
+                  : 'text-text-muted hover:text-text'
               }`}
             >
               Sign In
             </button>
             <button
+              type="button"
               onClick={() => {
                 setIsLogin(false);
                 setError(null);
               }}
-              className={`flex-1 pb-2 text-sm font-bold transition-colors ${
+              className={`flex-1 pb-3 text-xs font-bold uppercase tracking-wider transition-all ${
                 !isLogin
-                  ? 'border-b-2 border-indigo-500 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'border-b-2 border-accent text-accent'
+                  : 'text-text-muted hover:text-text'
               }`}
             >
-              Create Account
+              Register Candidate
             </button>
           </div>
 
-          {/* Role Selector (When Registering) */}
+          {/* Role Selector (Registration only) */}
           {!isLogin && (
-            <div className="mb-6">
-              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase">
-                Select Your Role
+            <div>
+              <label className="block text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">
+                Select Placement Role
               </label>
               <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  className={`p-2.5 text-xs font-bold rounded-xl border flex flex-col items-center justify-center transition-all ${
-                    role === 'student'
-                      ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-inner'
-                      : 'border-slate-800 text-slate-400 hover:bg-slate-850'
-                  }`}
-                >
-                  <GraduationCap className="w-4 h-4 mb-1" />
-                  Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('tnp_admin')}
-                  className={`p-2.5 text-xs font-bold rounded-xl border flex flex-col items-center justify-center transition-all ${
-                    role === 'tnp_admin'
-                      ? 'bg-emerald-600/20 border-emerald-500 text-white shadow-inner'
-                      : 'border-slate-800 text-slate-400 hover:bg-slate-850'
-                  }`}
-                >
-                  <Shield className="w-4 h-4 mb-1" />
-                  T&P Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('alumni')}
-                  className={`p-2.5 text-xs font-bold rounded-xl border flex flex-col items-center justify-center transition-all ${
-                    role === 'alumni'
-                      ? 'bg-amber-600/20 border-amber-500 text-white shadow-inner'
-                      : 'border-slate-800 text-slate-400 hover:bg-slate-850'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4 mb-1" />
-                  Alumni
-                </button>
+                {[
+                  { id: 'student', label: 'Student', icon: GraduationCap },
+                  { id: 'alumni', label: 'Alumni', icon: Sparkles },
+                  { id: 'tnp_admin', label: 'T&P Cell', icon: Shield },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = role === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setRole(item.id)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-semibold transition-all ${
+                        isSelected
+                          ? 'bg-accent-subtle border-accent text-accent shadow-inner'
+                          : 'bg-surface-2 border-border text-text-muted hover:text-text hover:bg-surface-hover'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 mb-1" />
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
+          {error && (
+            <div className="p-3 bg-danger-subtle border border-danger/20 text-danger rounded-xl text-xs flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
+              <span>{typeof error === 'string' ? error : 'Authentication failed.'}</span>
+            </div>
+          )}
+
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase">
+                <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
                   Full Name
                 </label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Rahul Sharma"
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+                  placeholder="e.g. Maya Chen"
+                  className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
                   required
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase">
-                Email Address
+              <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
+                Institutional Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@placyra.edu"
-                className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="name@university.edu"
+                className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase">
+              <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
                 Password
               </label>
               <input
@@ -221,93 +223,105 @@ export const AuthPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
                 required
               />
             </div>
 
             {!isLogin && role === 'student' && (
-              <div className="grid grid-cols-2 gap-3">
+              <>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase">
-                    CGPA
+                  <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
+                    Academic Branch / Department
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="10"
-                    value={cgpa}
-                    onChange={(e) => setCgpa(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+                    type="text"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    placeholder="Computer Science, IT, Electronics"
+                    className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase">
-                    Graduation Year
-                  </label>
-                  <input
-                    type="number"
-                    value={gradYear}
-                    onChange={(e) => setGradYear(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-            )}
 
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center">
-                <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
-                {error}
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
+                      Current CGPA
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={cgpa}
+                      onChange={(e) => setCgpa(e.target.value)}
+                      placeholder="8.50"
+                      className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-muted mb-1.5 uppercase">
+                      Grad Year
+                    </label>
+                    <input
+                      type="number"
+                      min="2024"
+                      max="2030"
+                      value={gradYear}
+                      onChange={(e) => setGradYear(e.target.value)}
+                      placeholder="2026"
+                      className="w-full bg-surface-2 border border-border text-text rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-all"
+              className="w-full mt-2 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-contrast text-sm font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center transition-all"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
+                  Verifying Credentials...
                 </>
               ) : (
                 <>
+                  <ArrowRight className="w-4 h-4 mr-2" />
                   {isLogin ? 'Sign In to Placyra' : 'Complete Registration'}
-                  <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}
             </button>
           </form>
 
-          {/* 1-Click Demo Accounts Quick Test */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <p className="text-xs text-center text-slate-400 uppercase font-semibold mb-3">
-              Fast 1-Click Evaluation Accounts
+          {/* Demo Login Credentials Fast-Track */}
+          <div className="pt-4 border-t border-border">
+            <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider text-center mb-2.5">
+              One-Click Demo Access
             </p>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => handleDemoLogin('student@placyra.edu', 'student123')}
-                className="px-2 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 text-xs font-semibold rounded-xl transition-colors"
+                onClick={() => handleDemoLogin('student@placyra.local', 'Student@2026')}
+                className="px-2 py-2 bg-accent-subtle hover:bg-accent/20 border border-accent/20 text-accent text-xs font-semibold rounded-xl transition-colors"
               >
-                🎓 Student
+                Student Demo
               </button>
               <button
                 type="button"
-                onClick={() => handleDemoLogin('admin@placyra.edu', 'admin123')}
-                className="px-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-semibold rounded-xl transition-colors"
+                onClick={() => handleDemoLogin('admin@placyra.local', 'Admin@2026')}
+                className="px-2 py-2 bg-success-subtle hover:bg-success/20 border border-success/20 text-success text-xs font-semibold rounded-xl transition-colors"
               >
-                🛡️ T&P Admin
+                Admin Demo
               </button>
               <button
                 type="button"
-                onClick={() => handleDemoLogin('alumni@placyra.edu', 'alumni123')}
-                className="px-2 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-semibold rounded-xl transition-colors"
+                onClick={() => handleDemoLogin('alumni@placyra.local', 'Alumni@2026')}
+                className="px-2 py-2 bg-warning-subtle hover:bg-warning/20 border border-warning/20 text-warning text-xs font-semibold rounded-xl transition-colors"
               >
-                ✨ Alumni
+                Alumni Demo
               </button>
             </div>
           </div>

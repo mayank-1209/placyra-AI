@@ -12,7 +12,7 @@ export const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('resume');
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="min-h-screen bg-bg text-text flex flex-col">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
